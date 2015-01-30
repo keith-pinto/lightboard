@@ -31,8 +31,12 @@ function onChatEvent(topic, event) {
     console.log("event:chat RECEIVED", event);
 }
 
+var cellsData = {};
+
 function onStateEvent(topic, event) {
     console.log("event:state RECEIVED", event);
+    cellsData = event;
+    renderComponents();
 }
 
 //ReactJS components
@@ -42,22 +46,45 @@ var GridCell = React.createClass({
     e.preventDefault();
     //Request server to place cell
     console.log('Request to place cell no: '+this.props.uid);
-    sess.call("rpc:placeCell", this.props.uid).then(
+
+    var data = {
+      "cellno": this.props.uid,
+      "sess-id": sess.sessionid()
+    };
+      
+    sess.call("rpc:placeCell", data).then(
       function (res) { console.log("rpc:placeCell RECEIVED success", res); },
       function (res) { console.log("rpc:placeCell RECEIVED error", res); }
     );
   },
 
   render: function() {
-    return <div className='grid-cell' onClick={this.handleClick}></div>
+    return <div className='grid-cell' 
+      onClick={this.handleClick}
+      style={{backgroundColor: this.props.bgColor}}></div>
   }
 });
 
 var Grid = React.createClass({
+  //getInitialState: function() {
+  //  return {"cells": cellsData};
+  //},
+
+  getCellColor: function(x) {
+    if(this.props.cellsData.hasOwnProperty(x))
+    {
+      return this.props.cellsData[x];
+    }
+    else
+    {
+      return "none";
+    }
+  },
+
   render: function() {
     var cells = [];
     for(i=0; i<this.props.cells; i++) {
-      cells.push(<GridCell key={i} uid={i}/>);
+      cells.push(<GridCell key={i} uid={i} bgColor={this.getCellColor(i)}/>);
     }
     return <div className='grid'>{cells}</div>
   }
@@ -81,11 +108,15 @@ var Notify = React.createClass({
   }
 });
 
+function renderComponents() {
 React.render(
   <div>
-    <Grid cells={100}/>
+    <Grid cells={100} cellsData={cellsData}/>
     <GetLockButton />
     <Notify />
   </div>,
   document.getElementById('wrapper')
 );
+}
+
+renderComponents();

@@ -15,9 +15,13 @@
 
 ;; HTTP Kit/WAMP WebSocket handler
 (defn- on-open [sess-id]
+  (lb/add-user! sess-id)
+  (lb/add-active-user! sess-id)
   (log/info "WAMP client connected [" sess-id "]"))
 
 (defn- on-close [sess-id status]
+  (lb/remove-user! sess-id)
+  (lb/assign-next-active-user!)
   (log/info "WAMP client disconnected [" sess-id "] " status))
 
 (defn- on-publish [sess-id topic event exclude include]
@@ -29,13 +33,15 @@
 
 (defn- broadcast-state []
   (log/info "Checking what is topic: " (evt-url "state"))
-  (wamp/broadcast-event! (evt-url "state") @lb/app-state []))
+  (wamp/broadcast-event! (evt-url "state") (@lb/app-state :cells) []))
 
 (defn- on-place-cell
-  [cellno]
-  (lb/place-cell cellno)
-  (broadcast-state))
-
+  [data]
+  (lb/place-cell! (data "cellno") (data "sess-id"))
+  (broadcast-state)
+  (log/info (data "cellno") (data "sess-id"))
+  (log/info "No. of Cells: " (-> @lb/app-state :cells count))
+  true)
 
 (defn wamp-handler
   "Returns a http-kit websocket handler with wamp subprotocol"
