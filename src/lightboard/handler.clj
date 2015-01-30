@@ -1,18 +1,3 @@
-;(ns lightboard.handler
-;  (:use [lightboard.websocket :only  [wamp-handler]])
-;  (:require [compojure.core :refer :all]
-;            [compojure.route :as route]
-;            [ring.middleware.defaults :refer [wrap-defaults site-defaults]]))
-;
-;(defroutes app-routes
-;  ;(GET "/" [] "Hello World")
-;  (GET "/ws"  [:as req]  (wamp-handler req))
-;  (route/resources "/")
-;  (route/not-found "Not Found"))
-;
-;(def app
-;  (wrap-defaults app-routes site-defaults))
-
 (ns lightboard.handler
   (:use [compojure.core :only [defroutes GET]]
         (ring.middleware [keyword-params :only [wrap-keyword-params]]
