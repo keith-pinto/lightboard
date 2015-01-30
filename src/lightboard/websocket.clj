@@ -33,15 +33,42 @@
 
 (defn- broadcast-state []
   (log/info "Checking what is topic: " (evt-url "state"))
-  (wamp/broadcast-event! (evt-url "state") (@lb/app-state :cells) []))
+  (wamp/broadcast-event! (evt-url "state") @lb/app-state []))
 
 (defn- on-place-cell
   [data]
-  (lb/place-cell! (data "cellno") (data "sess-id"))
-  (broadcast-state)
-  (log/info (data "cellno") (data "sess-id"))
-  (log/info "No. of Cells: " (-> @lb/app-state :cells count))
-  true)
+  (let [cellno (data "cellno")
+        sess-id (data "sess-id")]
+    (if (= sess-id (lb/get-lock-owner))
+      (do     
+        (lb/place-cell! cellno sess-id)
+        (lb/release-lock!)
+        (broadcast-state)
+        (log/info cellno sess-id)
+        (log/info "No. of Cells: " (-> @lb/app-state :cells count))
+        true)
+      false)))
+
+(defn- auto-release-lock! [ms-sleep]
+  (let [owner (lb/get-lock-owner)
+        token @lb/lock-token] 
+    (future 
+      (Thread/sleep ms-sleep)
+      (if (lb/same-lock? owner token)
+        (do
+          (log/info "auto released lock, owner: " owner " and token: " token)
+          (lb/release-lock!)
+          (broadcast-state))))))
+
+(defn- on-get-lock
+  [sess-id]
+  (if (nil? (lb/get-lock-owner))
+    (do
+      (lb/set-lock-owner! sess-id) 
+      (broadcast-state)
+      (auto-release-lock! (* 120 1000))
+      true)
+    false))
 
 (defn wamp-handler
   "Returns a http-kit websocket handler with wamp subprotocol"
@@ -51,6 +78,7 @@
       {:on-open        on-open
        :on-close       on-close
        :on-call        {(rpc-url "placeCell") on-place-cell
+                        (rpc-url "getLock") on-get-lock
                         (rpc-url "echo")  identity
                         (rpc-url "ping")  (fn [] "pong")
                         (rpc-url "throw") (fn [] (throw (Exception. "An exception")))

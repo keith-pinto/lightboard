@@ -3,9 +3,12 @@
 
 (def app-state (atom {:cells {}
                       :users {}
+                      :lockOwner nil
                       }))
 
 (def all-users (atom []))
+
+(def lock-token (atom nil))
 
 (def colors ["red" "yellow"])
 
@@ -80,3 +83,19 @@
 (defn assign-next-active-user! []
   (add-active-user! (first (get-available-users))))
 
+(defn get-lock-owner []
+  (@app-state :lockOwner))
+
+(defn release-lock! []
+  (swap! app-state assoc-in [:lockOwner] nil))
+
+(defn same-lock? [owner token]
+  (if (and (= owner (@app-state :lockOwner))
+           (= token @lock-token))
+    true
+    false))
+
+(defn set-lock-owner! [sess-id]
+  (swap! app-state assoc-in [:lockOwner] sess-id)
+  (reset! lock-token (rand 100))
+  (log/info "Current lock owner: " sess-id " and token: " @lock-token))

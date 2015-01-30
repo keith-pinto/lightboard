@@ -31,12 +31,16 @@ function onChatEvent(topic, event) {
     console.log("event:chat RECEIVED", event);
 }
 
-var cellsData = {};
+var appState = {
+  cells: {},
+  lockOwner: null
+};
 
 function onStateEvent(topic, event) {
     console.log("event:state RECEIVED", event);
-    cellsData = event;
-    renderComponents();
+    appState = event;
+    console.log(appState);
+    renderComponents(appState);
 }
 
 //ReactJS components
@@ -93,12 +97,19 @@ var Grid = React.createClass({
 var GetLockButton = React.createClass({
   handleClick: function(e) {
     e.preventDefault();
-    //console.log(sess);
-    sess.publish("event:chat", "foo");
-    console.log("event:chat SENT 'foo'");
+    console.log('Request to own lock');
+    sess.call("rpc:getLock", sess.sessionid()).then(
+      function (res) { console.log("rpc:getLock RECEIVED success", res); },
+      function (res) { console.log("rpc:getLock RECEIVED error", res); }
+    );
   },
+
   render: function() {
-    return <button type='button' onClick={this.handleClick}>Get Lock</button>
+    return <button type='button' 
+      onClick={this.handleClick} 
+      disabled={this.props.lockOwner != null && this.props.lockOwner != sess.sessionid()}>
+        Get Lock
+      </button>
   }
 });
 
@@ -108,15 +119,14 @@ var Notify = React.createClass({
   }
 });
 
-function renderComponents() {
-React.render(
-  <div>
-    <Grid cells={100} cellsData={cellsData}/>
-    <GetLockButton />
-    <Notify />
-  </div>,
-  document.getElementById('wrapper')
-);
+function renderComponents(state) {
+  React.render(
+    <div>
+      <Grid cells={100} cellsData={state.cells}/>
+      <GetLockButton lockOwner={state.lockOwner}/>
+    </div>,
+    document.getElementById('wrapper')
+  );
 }
 
-renderComponents();
+renderComponents(appState);
